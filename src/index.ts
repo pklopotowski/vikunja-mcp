@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { getClient } from "./vikunja-client.js";
 import { tokenStore } from "./request-context.js";
+import { RELATION_KINDS } from "./types.js";
 import type {
   Project,
   Task,
@@ -593,11 +594,7 @@ server.tool(
   {
     taskId: z.number().describe("The source task ID"),
     otherTaskId: z.number().describe("The target task ID"),
-    relationKind: z
-      .string()
-      .describe(
-        "Relation type: subtask, parenttask, related, duplicateof, duplicates, blocking, blocked, precedes, follows, copiedfrom, copiedto"
-      ),
+    relationKind: z.enum(RELATION_KINDS).describe("Relation type"),
   },
   async (args) => {
     try {
@@ -619,7 +616,7 @@ server.tool(
   {
     taskId: z.number().describe("The source task ID"),
     otherTaskId: z.number().describe("The target task ID"),
-    relationKind: z.string().describe("Relation type to remove"),
+    relationKind: z.enum(RELATION_KINDS).describe("Relation type to remove"),
   },
   async (args) => {
     try {

@@ -197,18 +197,21 @@ export interface TeamMember {
 // Relation Types
 // ============================================================================
 
-export type RelationKind =
-  | "subtask"
-  | "parenttask"
-  | "related"
-  | "duplicateof"
-  | "duplicates"
-  | "blocking"
-  | "blocked"
-  | "precedes"
-  | "follows"
-  | "copiedfrom"
-  | "copiedto";
+export const RELATION_KINDS = [
+  "subtask",
+  "parenttask",
+  "related",
+  "duplicateof",
+  "duplicates",
+  "blocking",
+  "blocked",
+  "precedes",
+  "follows",
+  "copiedfrom",
+  "copiedto",
+] as const;
+
+export type RelationKind = (typeof RELATION_KINDS)[number];
 
 export interface TaskRelation {
   task_id: number;
