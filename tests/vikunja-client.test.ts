@@ -21,28 +21,9 @@ describe("VikunjaClient", () => {
   });
 
   describe("constructor", () => {
-    it("should throw error when VIKUNJA_URL is not set", () => {
-      delete process.env.VIKUNJA_URL;
-
-      expect(() => new VikunjaClient()).toThrow(
-        "VIKUNJA_URL environment variable is required"
-      );
-    });
-
-    it("should throw error when VIKUNJA_API_TOKEN is not set", () => {
-      delete process.env.VIKUNJA_API_TOKEN;
-
-      expect(() => new VikunjaClient()).toThrow(
-        "VIKUNJA_API_TOKEN environment variable is required"
-      );
-    });
-
     it("should remove trailing slash from base URL", () => {
-      process.env.VIKUNJA_URL = "https://vikunja.example.com/";
+      const client = new VikunjaClient("https://vikunja.example.com/", "test-token-123");
 
-      const client = new VikunjaClient();
-
-      // We can verify this indirectly by making a request
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -58,8 +39,8 @@ describe("VikunjaClient", () => {
       );
     });
 
-    it("should create client successfully with valid environment variables", () => {
-      const client = new VikunjaClient();
+    it("should create client with explicit params", () => {
+      const client = new VikunjaClient("https://vikunja.example.com", "test-token-123");
       expect(client).toBeInstanceOf(VikunjaClient);
     });
   });
@@ -68,7 +49,7 @@ describe("VikunjaClient", () => {
     let client: VikunjaClient;
 
     beforeEach(() => {
-      client = new VikunjaClient();
+      client = new VikunjaClient("https://vikunja.example.com", "test-token-123");
     });
 
     describe("HTTP methods", () => {
@@ -452,7 +433,7 @@ describe("VikunjaClient", () => {
           expect(error).toBeInstanceOf(VikunjaApiError);
           const apiError = error as VikunjaApiError;
           expect(apiError.suggestion).toBe(
-            "Check that your VIKUNJA_API_TOKEN is valid and not expired"
+            "Check that your Vikunja API token is valid and not expired"
           );
         }
       });
@@ -670,6 +651,18 @@ describe("getClient()", () => {
 
   afterEach(() => {
     process.env = originalEnv;
+  });
+
+  it("should throw error when VIKUNJA_URL is not set", async () => {
+    delete process.env.VIKUNJA_URL;
+    const { getClient: freshGetClient } = await import("../src/vikunja-client.js");
+    expect(() => freshGetClient()).toThrow("VIKUNJA_URL environment variable is required");
+  });
+
+  it("should throw error when VIKUNJA_API_TOKEN is not set", async () => {
+    delete process.env.VIKUNJA_API_TOKEN;
+    const { getClient: freshGetClient } = await import("../src/vikunja-client.js");
+    expect(() => freshGetClient()).toThrow("VIKUNJA_API_TOKEN environment variable is required");
   });
 
   it("should return a VikunjaClient instance", async () => {

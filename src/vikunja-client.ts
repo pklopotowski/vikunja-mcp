@@ -1,3 +1,5 @@
+import { tokenStore } from "./request-context.js";
+
 /**
  * Vikunja API Client
  * HTTP wrapper for the Vikunja REST API
@@ -62,7 +64,7 @@ export class VikunjaApiError extends Error {
 function getErrorSuggestion(statusCode: number): string | undefined {
   switch (statusCode) {
     case 401:
-      return "Check that your VIKUNJA_API_TOKEN is valid and not expired";
+      return "Check that your Vikunja API token is valid and not expired";
     case 403:
       return "You may not have permission to access this resource";
     case 404:
@@ -150,18 +152,7 @@ export class VikunjaClient {
   private baseUrl: string;
   private token: string;
 
-  constructor() {
-    const baseUrl = process.env.VIKUNJA_URL;
-    const token = process.env.VIKUNJA_API_TOKEN;
-
-    if (!baseUrl) {
-      throw new Error("VIKUNJA_URL environment variable is required");
-    }
-    if (!token) {
-      throw new Error("VIKUNJA_API_TOKEN environment variable is required");
-    }
-
-    // Remove trailing slash if present
+  constructor(baseUrl: string, token: string) {
     this.baseUrl = baseUrl.replace(/\/$/, "");
     this.token = token;
   }
@@ -296,12 +287,25 @@ export class VikunjaClient {
   }
 }
 
-// Singleton instance
-let clientInstance: VikunjaClient | null = null;
+let stdioClient: VikunjaClient | null = null;
 
 export function getClient(): VikunjaClient {
-  if (!clientInstance) {
-    clientInstance = new VikunjaClient();
+  const baseUrl = process.env.VIKUNJA_URL;
+  if (!baseUrl) {
+    throw new Error("VIKUNJA_URL environment variable is required");
   }
-  return clientInstance;
+
+  const requestToken = tokenStore.getStore();
+  if (requestToken) {
+    return new VikunjaClient(baseUrl, requestToken);
+  }
+
+  if (!stdioClient) {
+    const token = process.env.VIKUNJA_API_TOKEN;
+    if (!token) {
+      throw new Error("VIKUNJA_API_TOKEN environment variable is required");
+    }
+    stdioClient = new VikunjaClient(baseUrl, token);
+  }
+  return stdioClient;
 }
