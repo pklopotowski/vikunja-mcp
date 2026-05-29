@@ -834,6 +834,16 @@ async function main() {
     throw new Error("VIKUNJA_MCP_TOKEN environment variable is required");
   }
 
+  const vikunjaUrl = process.env.VIKUNJA_URL;
+  if (!vikunjaUrl) {
+    throw new Error("VIKUNJA_URL environment variable is required");
+  }
+  try {
+    new URL(vikunjaUrl);
+  } catch {
+    throw new Error(`VIKUNJA_URL is not a valid URL: ${vikunjaUrl}`);
+  }
+
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
   });
