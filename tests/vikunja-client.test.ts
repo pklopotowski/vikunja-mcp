@@ -13,7 +13,6 @@ describe("VikunjaClient", () => {
     // Reset environment variables before each test
     process.env = { ...originalEnv };
     process.env.VIKUNJA_URL = "https://vikunja.example.com";
-    process.env.VIKUNJA_API_TOKEN = "test-token-123";
   });
 
   afterEach(() => {
@@ -646,7 +645,6 @@ describe("getClient()", () => {
     vi.resetModules();
     process.env = { ...originalEnv };
     process.env.VIKUNJA_URL = "https://vikunja.example.com";
-    process.env.VIKUNJA_API_TOKEN = "test-token-123";
   });
 
   afterEach(() => {
@@ -659,26 +657,17 @@ describe("getClient()", () => {
     expect(() => freshGetClient()).toThrow("VIKUNJA_URL environment variable is required");
   });
 
-  it("should throw error when VIKUNJA_API_TOKEN is not set", async () => {
-    delete process.env.VIKUNJA_API_TOKEN;
+  it("should throw when no token in request context", async () => {
     const { getClient: freshGetClient } = await import("../src/vikunja-client.js");
-    expect(() => freshGetClient()).toThrow("VIKUNJA_API_TOKEN environment variable is required");
+    expect(() => freshGetClient()).toThrow("No Vikunja API token in request context");
   });
 
-  it("should return a VikunjaClient instance", async () => {
-    // Re-import to get fresh singleton with fresh class reference
+  it("should return a VikunjaClient instance when token is in context", async () => {
     const { getClient: freshGetClient, VikunjaClient: FreshVikunjaClient } = await import(
       "../src/vikunja-client.js"
     );
-    const client = freshGetClient();
+    const { tokenStore: freshTokenStore } = await import("../src/request-context.js");
+    const client = freshTokenStore.run("my-token", () => freshGetClient());
     expect(client).toBeInstanceOf(FreshVikunjaClient);
-  });
-
-  it("should return the same instance on subsequent calls", async () => {
-    // Re-import to get fresh singleton
-    const { getClient: freshGetClient } = await import("../src/vikunja-client.js");
-    const client1 = freshGetClient();
-    const client2 = freshGetClient();
-    expect(client1).toBe(client2);
   });
 });

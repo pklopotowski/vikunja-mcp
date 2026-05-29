@@ -287,25 +287,16 @@ export class VikunjaClient {
   }
 }
 
-let stdioClient: VikunjaClient | null = null;
-
 export function getClient(): VikunjaClient {
   const baseUrl = process.env.VIKUNJA_URL;
   if (!baseUrl) {
     throw new Error("VIKUNJA_URL environment variable is required");
   }
 
-  const requestToken = tokenStore.getStore();
-  if (requestToken) {
-    return new VikunjaClient(baseUrl, requestToken);
+  const token = tokenStore.getStore();
+  if (!token) {
+    throw new Error("No Vikunja API token in request context");
   }
 
-  if (!stdioClient) {
-    const token = process.env.VIKUNJA_API_TOKEN;
-    if (!token) {
-      throw new Error("VIKUNJA_API_TOKEN environment variable is required");
-    }
-    stdioClient = new VikunjaClient(baseUrl, token);
-  }
-  return stdioClient;
+  return new VikunjaClient(baseUrl, token);
 }

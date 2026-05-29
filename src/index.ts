@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createServer } from "node:http";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { getClient } from "./vikunja-client.js";
 import { tokenStore } from "./request-context.js";
@@ -830,51 +830,45 @@ server.tool(
 
 // Start the server
 async function main() {
-  const transportType = process.env.MCP_TRANSPORT ?? "stdio";
+  const port = parseInt(process.env.PORT ?? "3000", 10);
+  const host = process.env.HOST ?? "0.0.0.0";
 
-  if (transportType === "http") {
-    const port = parseInt(process.env.PORT ?? "3000", 10);
-    const host = process.env.HOST ?? "127.0.0.1";
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+  });
 
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
+  await server.connect(transport);
+
+  const httpServer = createServer((req, res) => {
+    const { pathname } = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+    if (pathname !== "/sse") {
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Not found" }));
+      return;
+    }
+
+    const token = req.headers["x-vikunja-token"];
+    if (!token || typeof token !== "string") {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Missing X-Vikunja-Token header" }));
+      return;
+    }
+
+    tokenStore.run(token, () => {
+      transport.handleRequest(req, res);
     });
+  });
 
-    await server.connect(transport);
+  await new Promise<void>((resolve) => {
+    httpServer.listen(port, host, resolve);
+  });
 
-    const httpServer = createServer((req, res) => {
-      const { pathname } = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
-      if (pathname !== "/sse") {
-        res.writeHead(404, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Not found" }));
-        return;
-      }
-
-      const token = req.headers["x-vikunja-token"];
-      if (!token || typeof token !== "string") {
-        res.writeHead(401, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Missing X-Vikunja-Token header" }));
-        return;
-      }
-
-      tokenStore.run(token, () => {
-        transport.handleRequest(req, res);
-      });
-    });
-
-    await new Promise<void>((resolve) => {
-      httpServer.listen(port, host, resolve);
-    });
-
-    console.error(`Vikunja MCP server listening on http://${host}:${port}/mcp`);
-  } else {
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
-    console.error("Vikunja MCP server started");
-  }
+  console.error(`Vikunja MCP server listening on http://${host}:${port}/sse`);
 }
 
-main().catch((error) => {
-  console.error("Fatal error:", error);
-  process.exit(1);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error("Fatal error:", error);
+    process.exit(1);
+  });
+}
