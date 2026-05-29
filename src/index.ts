@@ -2,6 +2,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
@@ -833,6 +834,7 @@ async function main() {
   if (!mcpToken) {
     throw new Error("VIKUNJA_MCP_TOKEN environment variable is required");
   }
+  const expectedAuth = Buffer.from(`Bearer ${mcpToken}`);
 
   const vikunjaUrl = process.env.VIKUNJA_URL;
   if (!vikunjaUrl) {
@@ -866,7 +868,11 @@ async function main() {
     }
 
     const authHeader = req.headers["authorization"];
-    if (!authHeader || authHeader !== `Bearer ${mcpToken}`) {
+    const providedAuth = Buffer.from(typeof authHeader === "string" ? authHeader : "");
+    if (
+      providedAuth.length !== expectedAuth.length ||
+      !timingSafeEqual(providedAuth, expectedAuth)
+    ) {
       res.writeHead(401, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "Unauthorized" }));
       return;
