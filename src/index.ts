@@ -832,6 +832,7 @@ server.tool(
 async function main() {
   const port = parseInt(process.env.PORT ?? "3000", 10);
   const host = process.env.HOST ?? "0.0.0.0";
+  const mcpToken = process.env.VIKUNJA_MCP_TOKEN ?? crypto.randomUUID().replace(/-/g, "");
 
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
@@ -847,14 +848,21 @@ async function main() {
       return;
     }
 
-    const token = req.headers["x-vikunja-token"];
-    if (!token || typeof token !== "string") {
+    const authHeader = req.headers["authorization"];
+    if (!authHeader || authHeader !== `Bearer ${mcpToken}`) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Unauthorized" }));
+      return;
+    }
+
+    const vikunjaToken = req.headers["x-vikunja-token"];
+    if (!vikunjaToken || typeof vikunjaToken !== "string") {
       res.writeHead(401, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "Missing X-Vikunja-Token header" }));
       return;
     }
 
-    tokenStore.run(token, () => {
+    tokenStore.run(vikunjaToken, () => {
       transport.handleRequest(req, res);
     });
   });
@@ -863,6 +871,9 @@ async function main() {
     httpServer.listen(port, host, resolve);
   });
 
+  if (!process.env.VIKUNJA_MCP_TOKEN) {
+    console.error(`VIKUNJA_MCP_TOKEN not set — generated token: ${mcpToken}`);
+  }
   console.error(`Vikunja MCP server listening on http://${host}:${port}/sse`);
 }
 
