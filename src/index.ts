@@ -839,6 +839,13 @@ async function main() {
 
   const httpServer = createServer((req, res) => {
     const { pathname } = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+
+    if (pathname === "/healthz") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ status: "ok" }));
+      return;
+    }
+
     if (pathname !== "/sse") {
       res.writeHead(404, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "Not found" }));
