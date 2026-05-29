@@ -829,7 +829,10 @@ server.tool(
 async function main() {
   const port = parseInt(process.env.PORT ?? "3000", 10);
   const host = process.env.HOST ?? "0.0.0.0";
-  const mcpToken = process.env.VIKUNJA_MCP_TOKEN ?? crypto.randomUUID().replace(/-/g, "");
+  const mcpToken = process.env.VIKUNJA_MCP_TOKEN;
+  if (!mcpToken) {
+    throw new Error("VIKUNJA_MCP_TOKEN environment variable is required");
+  }
 
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
@@ -875,9 +878,6 @@ async function main() {
     httpServer.listen(port, host, resolve);
   });
 
-  if (!process.env.VIKUNJA_MCP_TOKEN) {
-    console.error(`VIKUNJA_MCP_TOKEN not set — generated token: ${mcpToken}`);
-  }
   console.error(`Vikunja MCP server listening on http://${host}:${port}/sse`);
 }
 
