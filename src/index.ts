@@ -893,6 +893,11 @@ async function main() {
       res.end(JSON.stringify({ error: "Missing X-Vikunja-Token header" }));
       return;
     }
+    if (!/^[A-Za-z0-9._\-+/=]{1,512}$/.test(vikunjaToken)) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Invalid X-Vikunja-Token format" }));
+      return;
+    }
 
     tokenStore.run(vikunjaToken, () => {
       transport.handleRequest(req, res);
