@@ -64,13 +64,14 @@ describe("VikunjaClient", () => {
 
         expect(mockFetch).toHaveBeenCalledWith(
           "https://vikunja.example.com/api/v1/projects/1",
-          {
+          expect.objectContaining({
             method: "GET",
             headers: {
               Authorization: "Bearer test-token-123",
               "Content-Type": "application/json",
             },
-          }
+            signal: expect.any(AbortSignal),
+          })
         );
         expect(result.data).toEqual({ id: 1, title: "Test" });
       });
@@ -88,14 +89,15 @@ describe("VikunjaClient", () => {
 
         expect(mockFetch).toHaveBeenCalledWith(
           "https://vikunja.example.com/api/v1/projects",
-          {
+          expect.objectContaining({
             method: "POST",
             headers: {
               Authorization: "Bearer test-token-123",
               "Content-Type": "application/json",
             },
             body: JSON.stringify(body),
-          }
+            signal: expect.any(AbortSignal),
+          })
         );
         expect(result.data).toEqual({ id: 1, title: "New Project" });
       });
@@ -113,14 +115,15 @@ describe("VikunjaClient", () => {
 
         expect(mockFetch).toHaveBeenCalledWith(
           "https://vikunja.example.com/api/v1/projects/1",
-          {
+          expect.objectContaining({
             method: "PUT",
             headers: {
               Authorization: "Bearer test-token-123",
               "Content-Type": "application/json",
             },
             body: JSON.stringify(body),
-          }
+            signal: expect.any(AbortSignal),
+          })
         );
         expect(result.data).toEqual({ id: 1, title: "Updated Project" });
       });
@@ -137,13 +140,14 @@ describe("VikunjaClient", () => {
 
         expect(mockFetch).toHaveBeenCalledWith(
           "https://vikunja.example.com/api/v1/projects/1",
-          {
+          expect.objectContaining({
             method: "DELETE",
             headers: {
               Authorization: "Bearer test-token-123",
               "Content-Type": "application/json",
             },
-          }
+            signal: expect.any(AbortSignal),
+          })
         );
         expect(result.data).toEqual({ message: "Deleted" });
       });

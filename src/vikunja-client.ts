@@ -111,6 +111,9 @@ const RETRY_CONFIG = {
   maxDelayMs: 4000,
 };
 
+// Per-attempt timeout for outbound requests to Vikunja
+const REQUEST_TIMEOUT_MS = 30_000;
+
 /**
  * Sleep for a given number of milliseconds
  */
@@ -201,8 +204,10 @@ export class VikunjaClient {
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       try {
-        const response = await fetch(url, fetchOptions);
+        const response = await fetch(url, { ...fetchOptions, signal: controller.signal });
 
         // Extract pagination headers
         const pagination: PaginationInfo = {
@@ -249,6 +254,17 @@ export class VikunjaClient {
           pagination: pagination.totalPages !== null ? pagination : undefined,
         };
       } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          lastError = new VikunjaApiError({
+            message: `Request timed out after ${REQUEST_TIMEOUT_MS}ms`,
+            statusCode: 504,
+            endpoint: path,
+            method,
+            suggestion: "Vikunja did not respond in time. Try again later.",
+          });
+          throw lastError;
+        }
+
         lastError = error instanceof Error ? error : new Error(String(error));
 
         // Check if this is a retryable network error
@@ -259,6 +275,8 @@ export class VikunjaClient {
         }
 
         throw lastError;
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
