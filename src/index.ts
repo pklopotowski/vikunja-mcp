@@ -852,6 +852,8 @@ async function main() {
 
   await server.connect(transport);
 
+  const MAX_BODY_BYTES = 1_048_576; // 1 MiB
+
   const httpServer = createServer((req, res) => {
     const { pathname } = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
 
@@ -864,6 +866,13 @@ async function main() {
     if (pathname !== "/sse") {
       res.writeHead(404, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "Not found" }));
+      return;
+    }
+
+    const contentLength = parseInt(req.headers["content-length"] ?? "0", 10);
+    if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
+      res.writeHead(413, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Payload too large" }));
       return;
     }
 
@@ -890,11 +899,32 @@ async function main() {
     });
   });
 
+  httpServer.headersTimeout = 10_000;
+  httpServer.requestTimeout = 60_000;
+  httpServer.maxConnections = 100;
+
   await new Promise<void>((resolve) => {
     httpServer.listen(port, host, resolve);
   });
 
   console.error(`Vikunja MCP server listening on http://${host}:${port}/sse`);
+
+  const shutdown = (signal: string) => {
+    console.error(`Received ${signal}, shutting down gracefully`);
+    httpServer.close((err) => {
+      if (err) {
+        console.error("Error during shutdown:", err);
+        process.exit(1);
+      }
+      process.exit(0);
+    });
+    setTimeout(() => {
+      console.error("Forcing shutdown after 10s timeout");
+      process.exit(1);
+    }, 10_000).unref();
+  };
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
