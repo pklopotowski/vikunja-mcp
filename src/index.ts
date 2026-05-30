@@ -4,6 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
+import type { Server } from "node:http";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { getClient } from "./vikunja-client.js";
@@ -826,25 +827,8 @@ export function createMcpServer(): McpServer {
 }
 
 // Start the server
-async function main() {
-  const port = parseInt(process.env.PORT ?? "3000", 10);
-  const host = process.env.HOST ?? "0.0.0.0";
-  const mcpToken = process.env.VIKUNJA_MCP_TOKEN;
-  if (!mcpToken) {
-    throw new Error("VIKUNJA_MCP_TOKEN environment variable is required");
-  }
+export function createHttpServer(mcpToken: string): Server {
   const expectedAuth = Buffer.from(`Bearer ${mcpToken}`);
-
-  const vikunjaUrl = process.env.VIKUNJA_URL;
-  if (!vikunjaUrl) {
-    throw new Error("VIKUNJA_URL environment variable is required");
-  }
-  try {
-    new URL(vikunjaUrl);
-  } catch {
-    throw new Error(`VIKUNJA_URL is not a valid URL: ${vikunjaUrl}`);
-  }
-
   const sessions = new Map<string, SSEServerTransport>();
   const MAX_BODY_BYTES = 1_048_576; // 1 MiB
 
@@ -952,6 +936,29 @@ async function main() {
   httpServer.headersTimeout = 10_000;
   httpServer.requestTimeout = 60_000;
   httpServer.maxConnections = 100;
+
+  return httpServer;
+}
+
+async function main() {
+  const port = parseInt(process.env.PORT ?? "3000", 10);
+  const host = process.env.HOST ?? "0.0.0.0";
+  const mcpToken = process.env.VIKUNJA_MCP_TOKEN;
+  if (!mcpToken) {
+    throw new Error("VIKUNJA_MCP_TOKEN environment variable is required");
+  }
+
+  const vikunjaUrl = process.env.VIKUNJA_URL;
+  if (!vikunjaUrl) {
+    throw new Error("VIKUNJA_URL environment variable is required");
+  }
+  try {
+    new URL(vikunjaUrl);
+  } catch {
+    throw new Error(`VIKUNJA_URL is not a valid URL: ${vikunjaUrl}`);
+  }
+
+  const httpServer = createHttpServer(mcpToken);
 
   await new Promise<void>((resolve) => {
     httpServer.listen(port, host, resolve);
