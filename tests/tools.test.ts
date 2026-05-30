@@ -40,8 +40,8 @@ vi.mock("@modelcontextprotocol/sdk/server/mcp.js", () => ({
   },
 }));
 
-vi.mock("@modelcontextprotocol/sdk/server/stdio.js", () => ({
-  StdioServerTransport: class MockStdioServerTransport {},
+vi.mock("@modelcontextprotocol/sdk/server/sse.js", () => ({
+  SSEServerTransport: class MockSSEServerTransport {},
 }));
 
 // Helper to parse tool response
@@ -82,12 +82,13 @@ describe("MCP Tool Handlers", () => {
       },
     }));
 
-    vi.doMock("@modelcontextprotocol/sdk/server/stdio.js", () => ({
-      StdioServerTransport: class MockStdioServerTransport {},
+    vi.doMock("@modelcontextprotocol/sdk/server/sse.js", () => ({
+      SSEServerTransport: class MockSSEServerTransport {},
     }));
 
-    // Import index to register tools
-    await import("../src/index.js");
+    // Import index and call the factory to register tools via the mocked McpServer
+    const { createMcpServer } = await import("../src/index.js");
+    createMcpServer();
   });
 
   afterEach(() => {
