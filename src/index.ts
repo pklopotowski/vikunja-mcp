@@ -212,32 +212,22 @@ export function createMcpServer(): McpServer {
     async (args) => {
       try {
         const client = getClient();
-        const query: Record<string, string | number | boolean | undefined> = {
+
+        const projectFilter =
+          args.projectId !== undefined ? `project_id = ${args.projectId}` : undefined;
+        const combinedFilter =
+          args.filter && projectFilter
+            ? `${projectFilter} && ${args.filter}`
+            : (projectFilter ?? args.filter);
+
+        const response = await client.get<Task[]>("/tasks", {
           page: args.page,
           per_page: args.perPage,
           s: args.search,
           sort_by: args.sortBy,
           order_by: args.orderBy,
-          filter: args.filter,
-        };
-
-        let response;
-        if (args.projectId) {
-          // Get tasks for a specific project - need to get the first view
-          const projectResponse = await client.get<Project>(`/projects/${args.projectId}`);
-          const project = projectResponse.data;
-          const firstView = project.views?.[0];
-          if (!firstView) {
-            return formatError(new Error("Project has no views"));
-          }
-          response = await client.get<Task[]>(
-            `/projects/${args.projectId}/views/${firstView.id}/tasks`,
-            query
-          );
-        } else {
-          // Get all tasks
-          response = await client.get<Task[]>("/tasks", query);
-        }
+          filter: combinedFilter,
+        });
 
         return formatResponse({ tasks: response.data, pagination: response.pagination });
       } catch (error) {

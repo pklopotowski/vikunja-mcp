@@ -289,40 +289,36 @@ describe("MCP Tool Handlers", () => {
     });
 
     it("should list tasks for a specific project", async () => {
-      const mockProject = { id: 1, views: [{ id: 10, title: "List" }] };
       const mockTasks = [{ id: 1, title: "Task 1" }];
-      mockGet.mockResolvedValueOnce({ data: mockProject }); // First call for project
-      mockGet.mockResolvedValueOnce({ data: mockTasks, pagination: null }); // Second call for tasks
+      mockGet.mockResolvedValueOnce({ data: mockTasks, pagination: null });
 
       const response = await callTool("tasks_list", { projectId: 1 });
       const data = parseResponse(response);
 
-      expect(mockGet).toHaveBeenCalledWith("/projects/1");
-      expect(mockGet).toHaveBeenCalledWith(
-        "/projects/1/views/10/tasks",
-        expect.any(Object)
-      );
+      expect(mockGet).toHaveBeenCalledWith("/tasks", expect.objectContaining({
+        filter: "project_id = 1",
+      }));
       expect(data.tasks).toEqual(mockTasks);
     });
 
-    it("should handle project with no views", async () => {
-      mockGet.mockResolvedValueOnce({ data: { id: 1, views: [] } });
+    it("should combine projectId filter with custom filter", async () => {
+      mockGet.mockResolvedValueOnce({ data: [], pagination: null });
 
-      const response = await callTool("tasks_list", { projectId: 1 });
-      const data = parseResponse(response);
+      await callTool("tasks_list", { projectId: 1, filter: "done = false" });
 
-      expect(response.isError).toBe(true);
-      expect(data.message).toBe("Project has no views");
+      expect(mockGet).toHaveBeenCalledWith("/tasks", expect.objectContaining({
+        filter: "project_id = 1 && done = false",
+      }));
     });
 
-    it("should handle project with undefined views", async () => {
-      mockGet.mockResolvedValueOnce({ data: { id: 1 } }); // views is undefined
+    it("should use only projectId filter when no custom filter", async () => {
+      mockGet.mockResolvedValueOnce({ data: [], pagination: null });
 
-      const response = await callTool("tasks_list", { projectId: 1 });
-      const data = parseResponse(response);
+      await callTool("tasks_list", { projectId: 5 });
 
-      expect(response.isError).toBe(true);
-      expect(data.message).toBe("Project has no views");
+      expect(mockGet).toHaveBeenCalledWith("/tasks", expect.objectContaining({
+        filter: "project_id = 5",
+      }));
     });
 
     it("should pass query parameters for tasks", async () => {
