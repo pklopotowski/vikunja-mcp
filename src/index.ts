@@ -879,7 +879,16 @@ export function createHttpServer(mcpToken: string): Server {
       const transport = new SSEServerTransport("/messages", res);
       sessions.set(transport.sessionId, transport);
 
+      // SSE comment heartbeat — keeps the TCP connection alive through NAT tables
+      // and reverse-proxy idle timeouts. Comment lines are ignored by all SSE clients.
+      const heartbeat = setInterval(() => {
+        if (!res.writableEnded) {
+          res.write(": heartbeat\n\n");
+        }
+      }, 15_000);
+
       res.on("close", () => {
+        clearInterval(heartbeat);
         sessions.delete(transport.sessionId);
         transport.close();
       });
