@@ -452,6 +452,14 @@ describe("MCP Tool Handlers", () => {
         description: "Updated description",
       });
     });
+
+    it("should move task to a different bucket via bucketId", async () => {
+      mockPost.mockResolvedValueOnce({ data: { id: 1, bucket_id: 7 } });
+
+      await callTool("tasks_update", { taskId: 1, bucketId: 7 });
+
+      expect(mockPost).toHaveBeenCalledWith("/tasks/1", { bucket_id: 7 });
+    });
   });
 
   describe("tasks_delete", () => {
@@ -766,8 +774,8 @@ describe("MCP Tool Handlers", () => {
       });
       const data = parseResponse(response);
 
-      expect(mockPost).toHaveBeenCalledWith("/projects/1/views/2/buckets/3/tasks", {
-        task_id: 4,
+      expect(mockPost).toHaveBeenCalledWith("/tasks/4", {
+        bucket_id: 3,
         position: 0,
       });
       expect(data).toEqual(mockTask);

@@ -318,6 +318,7 @@ export function createMcpServer(): McpServer {
       color: z.string().optional().describe("New hex color"),
       percentDone: z.number().optional().describe("New completion percentage (0-1)"),
       projectId: z.number().optional().describe("Move task to a different project"),
+      bucketId: z.number().optional().describe("Move task to a different kanban bucket"),
       isFavorite: z.boolean().optional().describe("Mark as favorite"),
     },
     async (args) => {
@@ -334,6 +335,7 @@ export function createMcpServer(): McpServer {
         if (args.color !== undefined) body.hex_color = args.color;
         if (args.percentDone !== undefined) body.percent_done = args.percentDone;
         if (args.projectId !== undefined) body.project_id = args.projectId;
+        if (args.bucketId !== undefined) body.bucket_id = args.bucketId;
         if (args.isFavorite !== undefined) body.is_favorite = args.isFavorite;
 
         const response = await client.post<Task>(`/tasks/${args.taskId}`, body);
@@ -723,24 +725,26 @@ export function createMcpServer(): McpServer {
 
   server.tool(
     "task_move_to_bucket",
-    "Move a task to a different kanban bucket",
+    "Move a task to a different kanban bucket (column)",
     {
-      projectId: z.number().describe("The project ID"),
-      viewId: z.number().describe("The project view ID"),
-      bucketId: z.number().describe("The target bucket ID"),
       taskId: z.number().describe("The task ID to move"),
-      position: z.number().optional().describe("Position within the bucket"),
+      bucketId: z.number().describe("The target bucket ID"),
+      projectId: z
+        .number()
+        .optional()
+        .describe("The project ID (for context, not required by API)"),
+      viewId: z
+        .number()
+        .optional()
+        .describe("The project view ID (for context, not required by API)"),
+      position: z.number().optional().describe("Position within the bucket for ordering"),
     },
     async (args) => {
       try {
         const client = getClient();
-        const response = await client.post<Task>(
-          `/projects/${args.projectId}/views/${args.viewId}/buckets/${args.bucketId}/tasks`,
-          {
-            task_id: args.taskId,
-            position: args.position,
-          }
-        );
+        const body: Record<string, unknown> = { bucket_id: args.bucketId };
+        if (args.position !== undefined) body.position = args.position;
+        const response = await client.post<Task>(`/tasks/${args.taskId}`, body);
         return formatResponse(response.data);
       } catch (error) {
         return formatError(error);
