@@ -752,7 +752,7 @@ export function createMcpServer(): McpServer {
 
   server.tool(
     "task_move_to_bucket",
-    "Move a task to a different kanban bucket (column)",
+    "Move a task to a different kanban bucket (column). Note: after moving, GET /tasks/{id} will still show bucket_id: 0 — this is a known Vikunja behavior. Verify the move by listing the target bucket's tasks instead.",
     {
       taskId: z.number().describe("The task ID to move"),
       bucketId: z.number().describe("The target bucket ID"),
