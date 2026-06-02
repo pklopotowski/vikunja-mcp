@@ -59,6 +59,34 @@ export function createMcpServer(): McpServer {
     };
   }
 
+  // Vikunja's POST /tasks/{id} does a full replacement, not a partial update.
+  // This helper GETs the current task state and merges changes before POSTing.
+  async function patchTask(taskId: number, changes: Record<string, unknown>): Promise<Task> {
+    const client = getClient();
+    const { data: current } = await client.get<Task>(`/tasks/${taskId}`);
+    const body: Record<string, unknown> = {
+      title: current.title,
+      description: current.description ?? "",
+      done: current.done ?? false,
+      due_date: current.due_date ?? null,
+      start_date: current.start_date ?? null,
+      end_date: current.end_date ?? null,
+      priority: current.priority ?? 0,
+      percent_done: current.percent_done ?? 0,
+      hex_color: current.hex_color ?? "",
+      project_id: current.project_id,
+      bucket_id: current.bucket_id ?? 0,
+      repeat_after: current.repeat_after ?? 0,
+      repeat_mode: current.repeat_mode ?? 0,
+      is_favorite: current.is_favorite ?? false,
+      assignees: current.assignees ?? [],
+      labels: current.labels ?? [],
+    };
+    Object.assign(body, changes);
+    const { data } = await client.post<Task>(`/tasks/${taskId}`, body);
+    return data;
+  }
+
   // ============================================================================
   // Ping Tool (for testing)
   // ============================================================================
@@ -323,23 +351,22 @@ export function createMcpServer(): McpServer {
     },
     async (args) => {
       try {
-        const client = getClient();
-        const body: Record<string, unknown> = {};
-        if (args.title !== undefined) body.title = args.title;
-        if (args.description !== undefined) body.description = args.description;
-        if (args.dueDate !== undefined) body.due_date = args.dueDate;
-        if (args.startDate !== undefined) body.start_date = args.startDate;
-        if (args.endDate !== undefined) body.end_date = args.endDate;
-        if (args.priority !== undefined) body.priority = args.priority;
-        if (args.done !== undefined) body.done = args.done;
-        if (args.color !== undefined) body.hex_color = args.color;
-        if (args.percentDone !== undefined) body.percent_done = args.percentDone;
-        if (args.projectId !== undefined) body.project_id = args.projectId;
-        if (args.bucketId !== undefined) body.bucket_id = args.bucketId;
-        if (args.isFavorite !== undefined) body.is_favorite = args.isFavorite;
+        const changes: Record<string, unknown> = {};
+        if (args.title !== undefined) changes.title = args.title;
+        if (args.description !== undefined) changes.description = args.description;
+        if (args.dueDate !== undefined) changes.due_date = args.dueDate;
+        if (args.startDate !== undefined) changes.start_date = args.startDate;
+        if (args.endDate !== undefined) changes.end_date = args.endDate;
+        if (args.priority !== undefined) changes.priority = args.priority;
+        if (args.done !== undefined) changes.done = args.done;
+        if (args.color !== undefined) changes.hex_color = args.color;
+        if (args.percentDone !== undefined) changes.percent_done = args.percentDone;
+        if (args.projectId !== undefined) changes.project_id = args.projectId;
+        if (args.bucketId !== undefined) changes.bucket_id = args.bucketId;
+        if (args.isFavorite !== undefined) changes.is_favorite = args.isFavorite;
 
-        const response = await client.post<Task>(`/tasks/${args.taskId}`, body);
-        return formatResponse(response.data);
+        const task = await patchTask(args.taskId, changes);
+        return formatResponse(task);
       } catch (error) {
         return formatError(error);
       }
@@ -741,11 +768,10 @@ export function createMcpServer(): McpServer {
     },
     async (args) => {
       try {
-        const client = getClient();
-        const body: Record<string, unknown> = { bucket_id: args.bucketId };
-        if (args.position !== undefined) body.position = args.position;
-        const response = await client.post<Task>(`/tasks/${args.taskId}`, body);
-        return formatResponse(response.data);
+        const changes: Record<string, unknown> = { bucket_id: args.bucketId };
+        if (args.position !== undefined) changes.position = args.position;
+        const task = await patchTask(args.taskId, changes);
+        return formatResponse(task);
       } catch (error) {
         return formatError(error);
       }
