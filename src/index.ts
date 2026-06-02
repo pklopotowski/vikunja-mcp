@@ -81,6 +81,7 @@ export function createMcpServer(): McpServer {
       is_favorite: current.is_favorite ?? false,
       assignees: current.assignees ?? [],
       labels: current.labels ?? [],
+      reminders: current.reminders ?? [],
     };
     Object.assign(body, changes);
     const { data } = await client.post<Task>(`/tasks/${taskId}`, body);
@@ -348,6 +349,12 @@ export function createMcpServer(): McpServer {
       projectId: z.number().optional().describe("Move task to a different project"),
       bucketId: z.number().optional().describe("Move task to a different kanban bucket"),
       isFavorite: z.boolean().optional().describe("Mark as favorite"),
+      reminders: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'Set reminders as ISO 8601 datetime strings, e.g. ["2026-06-10T09:00:00Z"]. Replaces all existing reminders.'
+        ),
     },
     async (args) => {
       try {
@@ -364,6 +371,8 @@ export function createMcpServer(): McpServer {
         if (args.projectId !== undefined) changes.project_id = args.projectId;
         if (args.bucketId !== undefined) changes.bucket_id = args.bucketId;
         if (args.isFavorite !== undefined) changes.is_favorite = args.isFavorite;
+        if (args.reminders !== undefined)
+          changes.reminders = args.reminders.map((r) => ({ reminder: r }));
 
         const task = await patchTask(args.taskId, changes);
         return formatResponse(task);

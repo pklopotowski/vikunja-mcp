@@ -478,6 +478,33 @@ describe("MCP Tool Handlers", () => {
         expect.objectContaining({ bucket_id: 7, assignees: [], labels: [] })
       );
     });
+
+    it("should set reminders on a task", async () => {
+      mockGet.mockResolvedValueOnce({ data: { id: 1, title: "Task", assignees: [], labels: [], reminders: [] } });
+      mockPost.mockResolvedValueOnce({ data: { id: 1, reminders: [{ reminder: "2026-06-10T09:00:00Z" }] } });
+
+      await callTool("tasks_update", { taskId: 1, reminders: ["2026-06-10T09:00:00Z"] });
+
+      expect(mockPost).toHaveBeenCalledWith(
+        "/tasks/1",
+        expect.objectContaining({
+          reminders: [{ reminder: "2026-06-10T09:00:00Z" }],
+        })
+      );
+    });
+
+    it("should preserve existing reminders when updating other fields", async () => {
+      const existing = [{ reminder: "2026-06-10T09:00:00Z" }];
+      mockGet.mockResolvedValueOnce({ data: { id: 1, title: "Task", assignees: [], labels: [], reminders: existing } });
+      mockPost.mockResolvedValueOnce({ data: { id: 1, title: "New Title" } });
+
+      await callTool("tasks_update", { taskId: 1, title: "New Title" });
+
+      expect(mockPost).toHaveBeenCalledWith(
+        "/tasks/1",
+        expect.objectContaining({ title: "New Title", reminders: existing })
+      );
+    });
   });
 
   describe("tasks_delete", () => {
