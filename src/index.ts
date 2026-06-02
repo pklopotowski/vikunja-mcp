@@ -756,22 +756,28 @@ export function createMcpServer(): McpServer {
     {
       taskId: z.number().describe("The task ID to move"),
       bucketId: z.number().describe("The target bucket ID"),
+      viewId: z.number().describe("The project view ID (kanban view containing the bucket)"),
       projectId: z
         .number()
         .optional()
-        .describe("The project ID (for context, not required by API)"),
-      viewId: z
-        .number()
-        .optional()
-        .describe("The project view ID (for context, not required by API)"),
+        .describe("The project ID — fetched automatically from the task if not provided"),
       position: z.number().optional().describe("Position within the bucket for ordering"),
     },
     async (args) => {
       try {
-        const changes: Record<string, unknown> = { bucket_id: args.bucketId };
-        if (args.position !== undefined) changes.position = args.position;
-        const task = await patchTask(args.taskId, changes);
-        return formatResponse(task);
+        const client = getClient();
+        let projectId = args.projectId;
+        if (!projectId) {
+          const { data: task } = await client.get<Task>(`/tasks/${args.taskId}`);
+          projectId = task.project_id;
+        }
+        const body: Record<string, unknown> = { task_id: args.taskId };
+        if (args.position !== undefined) body.position = args.position;
+        const response = await client.post<Task>(
+          `/projects/${projectId}/views/${args.viewId}/buckets/${args.bucketId}/tasks`,
+          body
+        );
+        return formatResponse(response.data);
       } catch (error) {
         return formatError(error);
       }

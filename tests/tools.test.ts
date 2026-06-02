@@ -779,28 +779,8 @@ describe("MCP Tool Handlers", () => {
   });
 
   describe("task_move_to_bucket", () => {
-    it("should move a task to a bucket preserving all existing fields", async () => {
-      const currentTask = {
-        id: 4,
-        title: "My Task",
-        description: "Important task",
-        done: false,
-        due_date: null,
-        start_date: null,
-        end_date: null,
-        priority: 2,
-        percent_done: 0,
-        hex_color: "",
-        project_id: 1,
-        bucket_id: 1,
-        repeat_after: 0,
-        repeat_mode: 0,
-        is_favorite: false,
-        assignees: [{ id: 5 }],
-        labels: [{ id: 10 }],
-      };
+    it("should move a task to a bucket using the bucket endpoint", async () => {
       const mockTask = { id: 4, bucket_id: 3 };
-      mockGet.mockResolvedValueOnce({ data: currentTask });
       mockPost.mockResolvedValueOnce({ data: mockTask });
 
       const response = await callTool("task_move_to_bucket", {
@@ -812,26 +792,32 @@ describe("MCP Tool Handlers", () => {
       });
       const data = parseResponse(response);
 
-      expect(mockGet).toHaveBeenCalledWith("/tasks/4");
-      expect(mockPost).toHaveBeenCalledWith("/tasks/4", {
-        title: "My Task",
-        description: "Important task",
-        done: false,
-        due_date: null,
-        start_date: null,
-        end_date: null,
-        priority: 2,
-        percent_done: 0,
-        hex_color: "",
-        project_id: 1,
-        bucket_id: 3,
-        position: 0,
-        repeat_after: 0,
-        repeat_mode: 0,
-        is_favorite: false,
-        assignees: [{ id: 5 }],
-        labels: [{ id: 10 }],
+      expect(mockGet).not.toHaveBeenCalled();
+      expect(mockPost).toHaveBeenCalledWith(
+        "/projects/1/views/2/buckets/3/tasks",
+        { task_id: 4, position: 0 }
+      );
+      expect(data).toEqual(mockTask);
+    });
+
+    it("should auto-fetch projectId from task when not provided", async () => {
+      const currentTask = { id: 4, project_id: 1 };
+      const mockTask = { id: 4, bucket_id: 3 };
+      mockGet.mockResolvedValueOnce({ data: currentTask });
+      mockPost.mockResolvedValueOnce({ data: mockTask });
+
+      const response = await callTool("task_move_to_bucket", {
+        viewId: 2,
+        bucketId: 3,
+        taskId: 4,
       });
+      const data = parseResponse(response);
+
+      expect(mockGet).toHaveBeenCalledWith("/tasks/4");
+      expect(mockPost).toHaveBeenCalledWith(
+        "/projects/1/views/2/buckets/3/tasks",
+        { task_id: 4 }
+      );
       expect(data).toEqual(mockTask);
     });
   });
