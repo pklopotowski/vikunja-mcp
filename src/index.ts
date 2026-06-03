@@ -81,7 +81,11 @@ export function createMcpServer(): McpServer {
       is_favorite: current.is_favorite ?? false,
       assignees: current.assignees ?? [],
       labels: current.labels ?? [],
-      reminders: current.reminders ?? [],
+      reminders: (current.reminders ?? []).map((r) => ({
+        reminder: r.reminder,
+        relative_period: r.relative_period,
+        relative_to: r.relative_to,
+      })),
     };
     Object.assign(body, changes);
     const { data } = await client.post<Task>(`/tasks/${taskId}`, body);
