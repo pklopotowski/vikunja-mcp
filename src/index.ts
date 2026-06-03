@@ -339,9 +339,21 @@ export function createMcpServer(): McpServer {
       taskId: z.number().describe("The task ID (required)"),
       title: z.string().optional().describe("New task title"),
       description: z.string().optional().describe("New task description"),
-      dueDate: z.string().optional().describe("New due date (ISO 8601 format)"),
-      startDate: z.string().optional().describe("New start date (ISO 8601 format)"),
-      endDate: z.string().optional().describe("New end date (ISO 8601 format)"),
+      dueDate: z
+        .string()
+        .nullable()
+        .optional()
+        .describe("New due date (ISO 8601 format), or null to clear"),
+      startDate: z
+        .string()
+        .nullable()
+        .optional()
+        .describe("New start date (ISO 8601 format), or null to clear"),
+      endDate: z
+        .string()
+        .nullable()
+        .optional()
+        .describe("New end date (ISO 8601 format), or null to clear"),
       priority: z.number().optional().describe("New priority level"),
       done: z.boolean().optional().describe("Mark as done or not done"),
       color: z.string().optional().describe("New hex color"),
