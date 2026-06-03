@@ -342,6 +342,20 @@ describe("MCP Tool Handlers", () => {
         filter: "done = false",
       });
     });
+
+    it("should pass filter_include_nulls when set to false", async () => {
+      mockGet.mockResolvedValueOnce({ data: [] });
+
+      await callTool("tasks_list", {
+        filter: "due_date < now+1d",
+        filterIncludeNulls: false,
+      });
+
+      expect(mockGet).toHaveBeenCalledWith("/tasks", expect.objectContaining({
+        filter: "due_date < now+1d",
+        filter_include_nulls: false,
+      }));
+    });
   });
 
   describe("tasks_get", () => {

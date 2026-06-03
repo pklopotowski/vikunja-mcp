@@ -237,7 +237,18 @@ export function createMcpServer(): McpServer {
         .optional()
         .describe("Sort field: id, title, done, due_date, priority, created, updated"),
       orderBy: z.string().optional().describe("Sort order: asc or desc"),
-      filter: z.string().optional().describe("Filter query (e.g., 'done = false')"),
+      filter: z
+        .string()
+        .optional()
+        .describe(
+          "Filter query (e.g., 'done = false'). Supports: =, !=, <, >, <=, >=, in, like. Use 'dueDate != null' to exclude tasks with no due date. Date math: now, now+1d, now/d."
+        ),
+      filterIncludeNulls: z
+        .boolean()
+        .optional()
+        .describe(
+          "When false, tasks with no value for the filtered field are excluded. Defaults to true. Set to false to prevent tasks without a due date from matching dueDate filters."
+        ),
     },
     async (args) => {
       try {
@@ -257,6 +268,7 @@ export function createMcpServer(): McpServer {
           sort_by: args.sortBy,
           order_by: args.orderBy,
           filter: combinedFilter,
+          filter_include_nulls: args.filterIncludeNulls,
         });
 
         return formatResponse({ tasks: response.data, pagination: response.pagination });
