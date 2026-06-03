@@ -302,6 +302,10 @@ export function createMcpServer(): McpServer {
       percentDone: z.number().optional().describe("Completion percentage (0-1)"),
       assignees: z.array(z.number()).optional().describe("Array of user IDs to assign"),
       labels: z.array(z.number()).optional().describe("Array of label IDs to add"),
+      reminders: z
+        .array(z.string())
+        .optional()
+        .describe('Reminders as ISO 8601 datetime strings, e.g. ["2026-06-10T09:00:00Z"]'),
     },
     async (args) => {
       try {
@@ -322,6 +326,9 @@ export function createMcpServer(): McpServer {
         }
         if (args.labels !== undefined) {
           body.labels = args.labels.map((id: number) => ({ id }));
+        }
+        if (args.reminders !== undefined) {
+          body.reminders = args.reminders.map((r) => ({ reminder: r }));
         }
 
         const response = await client.put<Task>(`/projects/${args.projectId}/tasks`, body);
@@ -361,11 +368,19 @@ export function createMcpServer(): McpServer {
       projectId: z.number().optional().describe("Move task to a different project"),
       bucketId: z.number().optional().describe("Move task to a different kanban bucket"),
       isFavorite: z.boolean().optional().describe("Mark as favorite"),
+      assignees: z
+        .array(z.number())
+        .optional()
+        .describe("Replace all assignees with this list of user IDs (use [] to remove all)"),
+      labels: z
+        .array(z.number())
+        .optional()
+        .describe("Replace all labels with this list of label IDs (use [] to remove all)"),
       reminders: z
         .array(z.string())
         .optional()
         .describe(
-          'Set reminders as ISO 8601 datetime strings, e.g. ["2026-06-10T09:00:00Z"]. Replaces all existing reminders.'
+          'Replace all reminders with this list of ISO 8601 datetime strings, e.g. ["2026-06-10T09:00:00Z"]. Use [] to remove all.'
         ),
     },
     async (args) => {
@@ -383,6 +398,8 @@ export function createMcpServer(): McpServer {
         if (args.projectId !== undefined) changes.project_id = args.projectId;
         if (args.bucketId !== undefined) changes.bucket_id = args.bucketId;
         if (args.isFavorite !== undefined) changes.is_favorite = args.isFavorite;
+        if (args.assignees !== undefined) changes.assignees = args.assignees.map((id) => ({ id }));
+        if (args.labels !== undefined) changes.labels = args.labels.map((id) => ({ id }));
         if (args.reminders !== undefined)
           changes.reminders = args.reminders.map((r) => ({ reminder: r }));
 

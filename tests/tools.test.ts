@@ -375,6 +375,7 @@ describe("MCP Tool Handlers", () => {
         percentDone: 0.5,
         assignees: [1, 2],
         labels: [3, 4],
+        reminders: ["2024-12-30T09:00:00Z"],
       });
       const data = parseResponse(response);
 
@@ -390,6 +391,7 @@ describe("MCP Tool Handlers", () => {
         percent_done: 0.5,
         assignees: [{ id: 1 }, { id: 2 }],
         labels: [{ id: 3 }, { id: 4 }],
+        reminders: [{ reminder: "2024-12-30T09:00:00Z" }],
       });
       expect(data).toEqual(mockTask);
     });
@@ -476,6 +478,23 @@ describe("MCP Tool Handlers", () => {
       expect(mockPost).toHaveBeenCalledWith(
         "/tasks/1",
         expect.objectContaining({ bucket_id: 7, assignees: [], labels: [] })
+      );
+    });
+
+    it("should replace assignees and labels when provided", async () => {
+      mockGet.mockResolvedValueOnce({
+        data: { id: 1, title: "Task", assignees: [{ id: 1 }], labels: [{ id: 2 }], reminders: [] },
+      });
+      mockPost.mockResolvedValueOnce({ data: { id: 1 } });
+
+      await callTool("tasks_update", { taskId: 1, assignees: [3, 4], labels: [5] });
+
+      expect(mockPost).toHaveBeenCalledWith(
+        "/tasks/1",
+        expect.objectContaining({
+          assignees: [{ id: 3 }, { id: 4 }],
+          labels: [{ id: 5 }],
+        })
       );
     });
 
