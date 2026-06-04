@@ -384,6 +384,16 @@ export function createMcpServer(): McpServer {
       projectId: z.number().optional().describe("Move task to a different project"),
       bucketId: z.number().optional().describe("Move task to a different kanban bucket"),
       isFavorite: z.boolean().optional().describe("Mark as favorite"),
+      repeatAfter: z
+        .number()
+        .optional()
+        .describe(
+          "Repeat interval in seconds (e.g. 86400 = daily, 604800 = weekly). Set to 0 to disable."
+        ),
+      repeatMode: z
+        .number()
+        .optional()
+        .describe("Repeat mode: 0 = from due date, 1 = monthly, 2 = from current date"),
       assignees: z
         .array(z.number())
         .optional()
@@ -414,6 +424,8 @@ export function createMcpServer(): McpServer {
         if (args.projectId !== undefined) changes.project_id = args.projectId;
         if (args.bucketId !== undefined) changes.bucket_id = args.bucketId;
         if (args.isFavorite !== undefined) changes.is_favorite = args.isFavorite;
+        if (args.repeatAfter !== undefined) changes.repeat_after = args.repeatAfter;
+        if (args.repeatMode !== undefined) changes.repeat_mode = args.repeatMode;
         if (args.assignees !== undefined) changes.assignees = args.assignees.map((id) => ({ id }));
         if (args.labels !== undefined) changes.labels = args.labels.map((id) => ({ id }));
         if (args.reminders !== undefined)
