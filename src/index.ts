@@ -21,6 +21,7 @@ import type {
   Notification,
   TaskRelation,
   ProjectView,
+  SavedFilter,
   Message,
 } from "./types.js";
 
@@ -484,6 +485,23 @@ export function createMcpServer(): McpServer {
   );
 
   server.tool(
+    "labels_get",
+    "Get a single label by ID",
+    {
+      labelId: z.number().describe("The label ID"),
+    },
+    async (args) => {
+      try {
+        const client = getClient();
+        const response = await client.get<Label>(`/labels/${args.labelId}`);
+        return formatResponse(response.data);
+      } catch (error) {
+        return formatError(error);
+      }
+    }
+  );
+
+  server.tool(
     "labels_create",
     "Create a new label",
     {
@@ -602,6 +620,48 @@ export function createMcpServer(): McpServer {
           comment: args.comment,
         });
         return formatResponse(response.data);
+      } catch (error) {
+        return formatError(error);
+      }
+    }
+  );
+
+  server.tool(
+    "task_comments_update",
+    "Update the text of an existing task comment",
+    {
+      taskId: z.number().describe("The task ID"),
+      commentId: z.number().describe("The comment ID"),
+      comment: z.string().describe("New comment text"),
+    },
+    async (args) => {
+      try {
+        const client = getClient();
+        const response = await client.post<TaskComment>(
+          `/tasks/${args.taskId}/comments/${args.commentId}`,
+          { comment: args.comment }
+        );
+        return formatResponse(response.data);
+      } catch (error) {
+        return formatError(error);
+      }
+    }
+  );
+
+  server.tool(
+    "task_comments_delete",
+    "Delete a comment from a task",
+    {
+      taskId: z.number().describe("The task ID"),
+      commentId: z.number().describe("The comment ID to delete"),
+    },
+    async (args) => {
+      try {
+        const client = getClient();
+        const response = await client.delete<Message>(
+          `/tasks/${args.taskId}/comments/${args.commentId}`
+        );
+        return formatResponse({ ...response.data, success: true, message: "Comment deleted" });
       } catch (error) {
         return formatError(error);
       }
@@ -746,6 +806,26 @@ export function createMcpServer(): McpServer {
   );
 
   // ============================================================================
+  server.tool(
+    "project_views_get",
+    "Get a single project view by ID",
+    {
+      projectId: z.number().describe("The project ID"),
+      viewId: z.number().describe("The view ID"),
+    },
+    async (args) => {
+      try {
+        const client = getClient();
+        const response = await client.get<ProjectView>(
+          `/projects/${args.projectId}/views/${args.viewId}`
+        );
+        return formatResponse(response.data);
+      } catch (error) {
+        return formatError(error);
+      }
+    }
+  );
+
   // Bucket (Kanban) Tools
   // ============================================================================
 
@@ -901,6 +981,47 @@ export function createMcpServer(): McpServer {
   );
 
   // ============================================================================
+  server.tool("user_get", "Get the currently authenticated user's profile", {}, async () => {
+    try {
+      const client = getClient();
+      const response = await client.get<User>("/user");
+      return formatResponse(response.data);
+    } catch (error) {
+      return formatError(error);
+    }
+  });
+
+  // ============================================================================
+  // Saved Filter Tools
+  // ============================================================================
+
+  server.tool("filters_list", "List all saved filters for the current user", {}, async () => {
+    try {
+      const client = getClient();
+      const response = await client.get<SavedFilter[]>("/filters");
+      return formatResponse({ filters: response.data });
+    } catch (error) {
+      return formatError(error);
+    }
+  });
+
+  server.tool(
+    "filters_get",
+    "Get a single saved filter by ID",
+    {
+      filterId: z.number().describe("The filter ID"),
+    },
+    async (args) => {
+      try {
+        const client = getClient();
+        const response = await client.get<SavedFilter>(`/filters/${args.filterId}`);
+        return formatResponse(response.data);
+      } catch (error) {
+        return formatError(error);
+      }
+    }
+  );
+
   // Notification Tools
   // ============================================================================
 

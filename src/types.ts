@@ -246,6 +246,21 @@ export interface Notification {
 }
 
 // ============================================================================
+// Saved Filter Types
+// ============================================================================
+
+export interface SavedFilter {
+  id: number;
+  title: string;
+  description?: string;
+  filters?: string;
+  is_favorite?: boolean;
+  owner?: User;
+  created?: string;
+  updated?: string;
+}
+
+// ============================================================================
 // Message Types (API Responses)
 // ============================================================================
 
