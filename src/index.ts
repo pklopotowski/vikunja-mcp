@@ -331,9 +331,9 @@ export function createMcpServer(): McpServer {
           title: args.title,
         };
         if (args.description !== undefined) body.description = args.description;
-        if (args.dueDate !== undefined) body.due_date = args.dueDate || null;
-        if (args.startDate !== undefined) body.start_date = args.startDate || null;
-        if (args.endDate !== undefined) body.end_date = args.endDate || null;
+        if (args.dueDate) body.due_date = args.dueDate;
+        if (args.startDate) body.start_date = args.startDate;
+        if (args.endDate) body.end_date = args.endDate;
         if (args.priority !== undefined) body.priority = args.priority;
         if (args.done !== undefined) body.done = args.done;
         if (args.color !== undefined) body.hex_color = args.color;
@@ -415,9 +415,10 @@ export function createMcpServer(): McpServer {
         const changes: Record<string, unknown> = {};
         if (args.title !== undefined) changes.title = args.title;
         if (args.description !== undefined) changes.description = args.description;
-        if (args.dueDate !== undefined) changes.due_date = args.dueDate || null;
-        if (args.startDate !== undefined) changes.start_date = args.startDate || null;
-        if (args.endDate !== undefined) changes.end_date = args.endDate || null;
+        if (args.dueDate !== undefined) changes.due_date = args.dueDate || "0001-01-01T00:00:00Z";
+        if (args.startDate !== undefined)
+          changes.start_date = args.startDate || "0001-01-01T00:00:00Z";
+        if (args.endDate !== undefined) changes.end_date = args.endDate || "0001-01-01T00:00:00Z";
         if (args.priority !== undefined) changes.priority = args.priority;
         if (args.done !== undefined) changes.done = args.done;
         if (args.color !== undefined) changes.hex_color = args.color;

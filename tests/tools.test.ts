@@ -516,13 +516,27 @@ describe("MCP Tool Handlers", () => {
       mockGet.mockResolvedValueOnce({
         data: { id: 1, title: "Task", due_date: "2026-06-10T09:00:00Z", assignees: [], labels: [], reminders: [] },
       });
-      mockPost.mockResolvedValueOnce({ data: { id: 1, due_date: null } });
+      mockPost.mockResolvedValueOnce({ data: { id: 1, due_date: "0001-01-01T00:00:00Z" } });
 
       await callTool("tasks_update", { taskId: 1, dueDate: null });
 
       expect(mockPost).toHaveBeenCalledWith(
         "/tasks/1",
-        expect.objectContaining({ due_date: null })
+        expect.objectContaining({ due_date: "0001-01-01T00:00:00Z" })
+      );
+    });
+
+    it("should clear a date field when empty string is passed", async () => {
+      mockGet.mockResolvedValueOnce({
+        data: { id: 1, title: "Task", due_date: "2026-06-10T09:00:00Z", assignees: [], labels: [], reminders: [] },
+      });
+      mockPost.mockResolvedValueOnce({ data: { id: 1, due_date: "0001-01-01T00:00:00Z" } });
+
+      await callTool("tasks_update", { taskId: 1, dueDate: "" });
+
+      expect(mockPost).toHaveBeenCalledWith(
+        "/tasks/1",
+        expect.objectContaining({ due_date: "0001-01-01T00:00:00Z" })
       );
     });
 
