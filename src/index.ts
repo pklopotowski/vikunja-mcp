@@ -60,8 +60,11 @@ export function createMcpServer(): McpServer {
     };
   }
 
-  // Searches all views of a project to find a bucket by ID and return its title.
-  async function findBucketTitle(projectId: number, bucketId: number): Promise<string | null> {
+  // Searches all views of a project to find a bucket by ID and return its title and viewId.
+  async function findBucketInfo(
+    projectId: number,
+    bucketId: number
+  ): Promise<{ title: string; viewId: number } | null> {
     const client = getClient();
     const viewsResp = await client.get<ProjectView[]>(`/projects/${projectId}/views`);
     for (const view of viewsResp.data) {
@@ -70,7 +73,7 @@ export function createMcpServer(): McpServer {
           `/projects/${projectId}/views/${view.id}/buckets`
         );
         const bucket = bucketsResp.data.find((b) => b.id === bucketId);
-        if (bucket) return bucket.title;
+        if (bucket) return { title: bucket.title, viewId: view.id };
       } catch {
         // view may not support buckets
       }
@@ -454,11 +457,19 @@ export function createMcpServer(): McpServer {
           try {
             const Q_PATTERN = /^Q[1-4]$/i;
             const client = getClient();
-            const [bucketTitle, labelsResp, taskResp] = await Promise.all([
-              findBucketTitle(task.project_id, args.bucketId),
+            const [bucketInfo, labelsResp, taskResp] = await Promise.all([
+              findBucketInfo(task.project_id, args.bucketId),
               client.get<Label[]>("/labels", { per_page: 100 }),
               client.get<Task>(`/tasks/${args.taskId}`),
             ]);
+
+            if (bucketInfo) {
+              await client.post<Task>(
+                `/projects/${task.project_id}/views/${bucketInfo.viewId}/buckets/${args.bucketId}/tasks`,
+                { task_id: args.taskId }
+              );
+            }
+
             const qLabelIds = new Set(
               labelsResp.data.filter((l) => Q_PATTERN.test(l.title)).map((l) => l.id)
             );
@@ -469,13 +480,13 @@ export function createMcpServer(): McpServer {
               }
             }
 
-            if (bucketTitle && Q_PATTERN.test(bucketTitle)) {
+            if (bucketInfo && Q_PATTERN.test(bucketInfo.title)) {
               const qLabel = labelsResp.data.find(
-                (l) => l.title.toUpperCase() === bucketTitle.toUpperCase()
+                (l) => l.title.toUpperCase() === bucketInfo.title.toUpperCase()
               );
               if (!qLabel) {
                 console.error(
-                  `[tasks_update] label "${bucketTitle.toUpperCase()}" not found — add it manually in Vikunja`
+                  `[tasks_update] label "${bucketInfo.title.toUpperCase()}" not found — add it manually in Vikunja`
                 );
               } else {
                 await client.put<Label>(`/tasks/${args.taskId}/labels`, { label_id: qLabel.id });
