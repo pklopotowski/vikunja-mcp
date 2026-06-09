@@ -896,7 +896,7 @@ export function createMcpServer(): McpServer {
 
   server.tool(
     "task_move_to_bucket",
-    "Move a task to a different kanban bucket (column). Note: after moving, GET /tasks/{id} will still show bucket_id: 0 — this is a known Vikunja behavior. Verify the move by listing the target bucket's tasks instead.",
+    "Move a task to a different kanban bucket (column). Automatically adds the matching Q1–Q4 label when moving to a Q-named bucket. Note: after moving, GET /tasks/{id} will still show bucket_id: 0 — this is a known Vikunja behavior. Verify the move by listing the target bucket's tasks instead.",
     {
       taskId: z.number().describe("The task ID to move"),
       bucketId: z.number().describe("The target bucket ID"),
@@ -921,6 +921,31 @@ export function createMcpServer(): McpServer {
           `/projects/${projectId}/views/${args.viewId}/buckets/${args.bucketId}/tasks`,
           body
         );
+
+        try {
+          const bucketsResp = await client.get<Bucket[]>(
+            `/projects/${projectId}/views/${args.viewId}/buckets`
+          );
+          const targetBucket = bucketsResp.data.find((b) => b.id === args.bucketId);
+          if (targetBucket && /^Q[1-4]$/i.test(targetBucket.title)) {
+            const bucketName = targetBucket.title.toUpperCase();
+            const labelsResp = await client.get<Label[]>("/labels", { per_page: 100 });
+            const qLabel = labelsResp.data.find((l) => l.title.toUpperCase() === bucketName);
+            if (!qLabel) {
+              console.error(
+                `[task_move_to_bucket] label "${bucketName}" not found — add it manually in Vikunja`
+              );
+            } else {
+              await client.put<Label>(`/tasks/${args.taskId}/labels`, { label_id: qLabel.id });
+            }
+          }
+        } catch (labelErr) {
+          console.error(
+            `[task_move_to_bucket] Q-label sync failed for task ${args.taskId}:`,
+            labelErr
+          );
+        }
+
         return formatResponse(response.data);
       } catch (error) {
         return formatError(error);
