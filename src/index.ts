@@ -60,6 +60,24 @@ export function createMcpServer(): McpServer {
     };
   }
 
+  // Searches all views of a project to find a bucket by ID and return its title.
+  async function findBucketTitle(projectId: number, bucketId: number): Promise<string | null> {
+    const client = getClient();
+    const viewsResp = await client.get<ProjectView[]>(`/projects/${projectId}/views`);
+    for (const view of viewsResp.data) {
+      try {
+        const bucketsResp = await client.get<Bucket[]>(
+          `/projects/${projectId}/views/${view.id}/buckets`
+        );
+        const bucket = bucketsResp.data.find((b) => b.id === bucketId);
+        if (bucket) return bucket.title;
+      } catch {
+        // view may not support buckets
+      }
+    }
+    return null;
+  }
+
   // Vikunja's POST /tasks/{id} does a full replacement, not a partial update.
   // This helper GETs the current task state and merges changes before POSTing.
   async function patchTask(taskId: number, changes: Record<string, unknown>): Promise<Task> {
@@ -430,7 +448,41 @@ export function createMcpServer(): McpServer {
         if (args.reminders !== undefined)
           changes.reminders = args.reminders.map((r) => ({ reminder: r }));
 
-        const task = await patchTask(args.taskId, changes);
+        let task = await patchTask(args.taskId, changes);
+
+        if (args.bucketId !== undefined && task.project_id !== undefined) {
+          try {
+            const Q_PATTERN = /^Q[1-4]$/i;
+            const client = getClient();
+            const [bucketTitle, labelsResp] = await Promise.all([
+              findBucketTitle(task.project_id, args.bucketId),
+              client.get<Label[]>("/labels", { per_page: 100 }),
+            ]);
+            const currentLabels = task.labels ?? [];
+            const nonQLabels = currentLabels.filter((l) => !Q_PATTERN.test(l.title ?? ""));
+
+            if (bucketTitle && Q_PATTERN.test(bucketTitle)) {
+              const bucketName = bucketTitle.toUpperCase();
+              const qLabel = labelsResp.data.find((l) => l.title.toUpperCase() === bucketName);
+              if (!qLabel) {
+                console.error(
+                  `[tasks_update] label "${bucketName}" not found — add it manually in Vikunja`
+                );
+              } else {
+                task = await patchTask(args.taskId, {
+                  labels: [...nonQLabels.map((l) => ({ id: l.id })), { id: qLabel.id }],
+                });
+              }
+            } else if (currentLabels.some((l) => Q_PATTERN.test(l.title ?? ""))) {
+              task = await patchTask(args.taskId, {
+                labels: nonQLabels.map((l) => ({ id: l.id })),
+              });
+            }
+          } catch (labelErr) {
+            console.error(`[tasks_update] Q-label sync failed for task ${args.taskId}:`, labelErr);
+          }
+        }
+
         return formatResponse(task);
       } catch (error) {
         return formatError(error);
