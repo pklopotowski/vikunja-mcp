@@ -994,11 +994,11 @@ export function createMcpServer(): McpServer {
               );
             } else {
               await patchTask(args.taskId, {
-                labels: [...nonQLabels, { id: qLabel.id }],
+                labels: [...nonQLabels.map((l) => ({ id: l.id })), { id: qLabel.id }],
               });
             }
           } else if (currentLabels.some((l) => Q_PATTERN.test(l.title ?? ""))) {
-            await patchTask(args.taskId, { labels: nonQLabels });
+            await patchTask(args.taskId, { labels: nonQLabels.map((l) => ({ id: l.id })) });
           }
         } catch (labelErr) {
           console.error(
