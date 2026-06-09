@@ -102,7 +102,6 @@ export function createMcpServer(): McpServer {
       repeat_mode: current.repeat_mode ?? 0,
       is_favorite: current.is_favorite ?? false,
       assignees: current.assignees ?? [],
-      labels: current.labels ?? [],
       reminders: (current.reminders ?? []).map((r) => ({
         reminder: r.reminder,
         relative_period: r.relative_period,
@@ -447,7 +446,6 @@ export function createMcpServer(): McpServer {
         if (args.repeatAfter !== undefined) changes.repeat_after = args.repeatAfter;
         if (args.repeatMode !== undefined) changes.repeat_mode = args.repeatMode;
         if (args.assignees !== undefined) changes.assignees = args.assignees.map((id) => ({ id }));
-        if (args.labels !== undefined) changes.labels = args.labels.map((id) => ({ id }));
         if (args.reminders !== undefined)
           changes.reminders = args.reminders.map((r) => ({ reminder: r }));
 
@@ -473,13 +471,14 @@ export function createMcpServer(): McpServer {
             const qLabelIds = new Set(
               labelsResp.data.filter((l) => Q_PATTERN.test(l.title)).map((l) => l.id)
             );
+            const baseLabels =
+              args.labels !== undefined
+                ? args.labels.filter((id) => !qLabelIds.has(id)).map((id) => ({ id }))
+                : (taskResp.data.labels ?? [])
+                    .filter((l) => !qLabelIds.has(l.id))
+                    .map((l) => ({ id: l.id }));
 
-            for (const label of taskResp.data.labels ?? []) {
-              if (qLabelIds.has(label.id)) {
-                await client.delete<Message>(`/tasks/${args.taskId}/labels/${label.id}`);
-              }
-            }
-
+            let finalLabels = baseLabels;
             if (bucketInfo && Q_PATTERN.test(bucketInfo.title)) {
               const qLabel = labelsResp.data.find(
                 (l) => l.title.toUpperCase() === bucketInfo.title.toUpperCase()
@@ -489,11 +488,24 @@ export function createMcpServer(): McpServer {
                   `[tasks_update] label "${bucketInfo.title.toUpperCase()}" not found — add it manually in Vikunja`
                 );
               } else {
-                await client.put<Label>(`/tasks/${args.taskId}/labels`, { label_id: qLabel.id });
+                finalLabels = [...baseLabels, { id: qLabel.id }];
               }
             }
+
+            await client.post<{ labels: Label[] }>(`/tasks/${args.taskId}/labels/bulk`, {
+              labels: finalLabels,
+            });
           } catch (labelErr) {
             console.error(`[tasks_update] Q-label sync failed for task ${args.taskId}:`, labelErr);
+          }
+        } else if (args.labels !== undefined) {
+          try {
+            const client = getClient();
+            await client.post<{ labels: Label[] }>(`/tasks/${args.taskId}/labels/bulk`, {
+              labels: args.labels.map((id) => ({ id })),
+            });
+          } catch (labelErr) {
+            console.error(`[tasks_update] label update failed for task ${args.taskId}:`, labelErr);
           }
         }
 
@@ -999,13 +1011,11 @@ export function createMcpServer(): McpServer {
           const qLabelIds = new Set(
             labelsResp.data.filter((l) => Q_PATTERN.test(l.title)).map((l) => l.id)
           );
+          const nonQLabels = (taskResp.data.labels ?? [])
+            .filter((l) => !qLabelIds.has(l.id))
+            .map((l) => ({ id: l.id }));
 
-          for (const label of taskResp.data.labels ?? []) {
-            if (qLabelIds.has(label.id)) {
-              await client.delete<Message>(`/tasks/${args.taskId}/labels/${label.id}`);
-            }
-          }
-
+          let finalLabels = nonQLabels;
           if (targetBucket && Q_PATTERN.test(targetBucket.title)) {
             const qLabel = labelsResp.data.find(
               (l) => l.title.toUpperCase() === targetBucket.title.toUpperCase()
@@ -1015,9 +1025,13 @@ export function createMcpServer(): McpServer {
                 `[task_move_to_bucket] label "${targetBucket.title.toUpperCase()}" not found — add it manually in Vikunja`
               );
             } else {
-              await client.put<Label>(`/tasks/${args.taskId}/labels`, { label_id: qLabel.id });
+              finalLabels = [...nonQLabels, { id: qLabel.id }];
             }
           }
+
+          await client.post<{ labels: Label[] }>(`/tasks/${args.taskId}/labels/bulk`, {
+            labels: finalLabels,
+          });
         } catch (labelErr) {
           console.error(
             `[task_move_to_bucket] Q-label sync failed for task ${args.taskId}:`,
