@@ -923,21 +923,30 @@ export function createMcpServer(): McpServer {
         );
 
         try {
-          const bucketsResp = await client.get<Bucket[]>(
-            `/projects/${projectId}/views/${args.viewId}/buckets`
-          );
+          const Q_PATTERN = /^Q[1-4]$/i;
+          const [bucketsResp, taskResp, labelsResp] = await Promise.all([
+            client.get<Bucket[]>(`/projects/${projectId}/views/${args.viewId}/buckets`),
+            client.get<Task>(`/tasks/${args.taskId}`),
+            client.get<Label[]>("/labels", { per_page: 100 }),
+          ]);
           const targetBucket = bucketsResp.data.find((b) => b.id === args.bucketId);
-          if (targetBucket && /^Q[1-4]$/i.test(targetBucket.title)) {
+          const currentLabels = taskResp.data.labels ?? [];
+          const nonQLabels = currentLabels.filter((l) => !Q_PATTERN.test(l.title ?? ""));
+
+          if (targetBucket && Q_PATTERN.test(targetBucket.title)) {
             const bucketName = targetBucket.title.toUpperCase();
-            const labelsResp = await client.get<Label[]>("/labels", { per_page: 100 });
             const qLabel = labelsResp.data.find((l) => l.title.toUpperCase() === bucketName);
             if (!qLabel) {
               console.error(
                 `[task_move_to_bucket] label "${bucketName}" not found — add it manually in Vikunja`
               );
             } else {
-              await client.put<Label>(`/tasks/${args.taskId}/labels`, { label_id: qLabel.id });
+              await patchTask(args.taskId, {
+                labels: [...nonQLabels, { id: qLabel.id }],
+              });
             }
+          } else if (currentLabels.some((l) => Q_PATTERN.test(l.title ?? ""))) {
+            await patchTask(args.taskId, { labels: nonQLabels });
           }
         } catch (labelErr) {
           console.error(
